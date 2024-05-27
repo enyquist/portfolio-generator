@@ -1,0 +1,58 @@
+[tool.black]
+line-length = 120
+target-version = ['py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+    | \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | \_build
+    | buck-out
+    | build
+    | dist
+    | src
+    | venv
+    | env
+    | docs
+    | app
+)/
+'''
+
+[tool.isort]
+profile = "black"
+sections = ["FUTURE" ,"STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+import_heading_stdlib = "standard libraries"
+import_heading_thirdparty = "third party libraries"
+import_heading_firstparty = "portfoliogenerator libraries"
+dedup_headings = true
+line_length = 120
+
+[tool.mypy]
+python_version = "3.12"
+disallow_untyped_defs = true
+ignore_missing_imports = true
+strict_optional = false
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+omit = ['**/__init__.py']
+
+[tool.coverage.report]
+ignore_errors = false
+show_missing = true
+exclude_lines = [
+    '@abstractmethod',
+    '@abc.abstractmethod',
+    'Protocol'
+]
+fail_under = 90
+
+[build-system]
+requires=["setuptools==69.5.1", "wheel==0.43.0"]

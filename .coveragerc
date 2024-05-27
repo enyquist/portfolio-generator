@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = portfolio-generator
+
+[report]
+fail_under = 90
+omit =
+    */base.py
+    */__init__.py

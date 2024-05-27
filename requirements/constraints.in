@@ -1,0 +1,3 @@
+# This file allows specifying constraints for the initial `requirements.txt` file for setup-tools
+# These additional constraints ensure that `requirements.txt` and
+# `requirements-dev.txt` can be built without conflict.
