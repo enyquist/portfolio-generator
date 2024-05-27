@@ -7,6 +7,9 @@ init: ## Initialize Project
 	@./venv/bin/python3 -m pip install -e . --no-deps
 	@./venv/bin/python3 -m pre_commit install --install-hooks --overwrite
 
+	# Build the Rust code and link to Python
+	(cd rust/pso && ../venv/bin/maturin develop)
+
 clean:  ## remove build artifacts
 	rm -rf build dist venv pip-wheel-metadata htmlcov
 	find . -name .tox | xargs rm -rf
