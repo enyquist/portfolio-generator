@@ -78,14 +78,6 @@ pub fn initialize_particles(
             velocity[i] = rng.gen_range(-0.1..0.1);
         }
 
-        // let position: Array1<f64> = Array1::from_iter(asset_configs.iter().map(|config| {
-        //     rng.gen_range(config.range().min()..config.range().max())  // Random weight within the asset's range
-        // }));
-
-        // let velocity: Array1<f64> = Array1::from_shape_fn(position.dim(), |_| {
-        //     rng.gen_range(-0.1..0.1)  // Random velocity between -0.1 and 0.1
-        // });
-
         particles.push(Particle {
             position: position.clone(),
             velocity,
