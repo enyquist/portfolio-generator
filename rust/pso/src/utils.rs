@@ -164,28 +164,28 @@ pub fn calculate_taxes(
     qualified_brackets: &[TaxBracket],
     non_qualified_brackets: &[TaxBracket],
 ) -> f64 {
-    let qualified = df.column("Qualified").unwrap().bool().unwrap();
+    let qualified = df.column("ETF").unwrap().f64().unwrap().clone();
     let yield_values = df.column("Yield").unwrap().f64().unwrap();
 
     let qualified_income = weights.iter()
-    .zip(qualified.into_iter())
-    .zip(yield_values.into_iter())
-    .map(|((weight, qualified), yield_value)| match (qualified, yield_value) {
-        (Some(true), Some(yield_value)) => weight * yield_value,  // Check both Option values
-        _ => 0.0,  // Handle all other cases including None
-    })
-    .sum::<f64>() * capital;  // Calculate total qualified income
+        .zip(qualified.into_iter())
+        .zip(yield_values.into_iter())
+        .map(|((weight, qualified), yield_value)| match (qualified, yield_value) {
+            (Some(1.0), Some(yield_value)) => weight * yield_value,  // Check both Option values
+            _ => 0.0,  // Handle all other cases including None
+        })
+        .sum::<f64>() * capital;  // Calculate total qualified income
 
     let non_qualified_income = weights.iter()
-    .zip(qualified.into_iter())
-    .zip(yield_values.into_iter())
-    .map(|((weight, qualified), yield_value)| {
-        match (qualified, yield_value) {
-            (Some(false), Some(yield_val)) => weight * yield_val,  // Only calculate if qualified is false and yield_val is Some
-            _ => 0.0,  // Handle all other cases including None values
-        }
-    })
-    .sum::<f64>() * capital;  // Calculate total non-qualified income
+        .zip(qualified.into_iter())
+        .zip(yield_values.into_iter())
+        .map(|((weight, qualified), yield_value)| {
+            match (qualified, yield_value) {
+                (Some(0.0), Some(yield_val)) => weight * yield_val,  // Only calculate if qualified is false and yield_val is Some
+                _ => 0.0,  // Handle all other cases including None values
+            }
+        })
+        .sum::<f64>() * capital;  // Calculate total non-qualified income
 
     tax_qualified(qualified_income, salary, qualified_brackets) + tax_non_qualified(non_qualified_income, salary, non_qualified_brackets)
 }
@@ -253,8 +253,13 @@ mod tests {
     // Helper functions to create a DataFrame
     fn create_test_dataframe() -> DataFrame {
         let qualified = BooleanChunked::from_slice("Qualified", &[true, false]);
+        let etf = Float64Chunked::from_slice("ETF", &[1.0, 0.0]);
         let yields = Float64Chunked::from_slice("Yield", &[0.02, 0.03]);
-        DataFrame::new(vec![qualified.into_series(), yields.into_series()]).unwrap()
+        DataFrame::new(vec![
+            qualified.into_series(),
+            yields.into_series(),
+            etf.into_series(),
+        ]).unwrap()
     }
 
     #[test]

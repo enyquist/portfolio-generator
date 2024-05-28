@@ -39,9 +39,7 @@ pub fn objective_function(
     let yield_penalty = ((min_yield - weighted_yield).max(0.0) / min_yield * 1000.0) as f64;
     let income_penalty = ((required_income - net_income).max(0.0) / required_income * 1000.0) as f64;
     let expense_penalty = weighted_expense_ratio * 1000.0;
-    dbg!(&df);
     let diversity_penalty = calculate_diversity_penalty(&particle, &df);
-    dbg!(&diversity_penalty);
 
     // Calculate total objective value
     let objective_value = div_preference * weighted_dividend_growth
@@ -186,7 +184,7 @@ fn optimize(
     }
 
     // Create DataFrame from the first series and then add others if more exist
-    let df = {
+    let mut df = {
         let (first_key, first_col_data) = columns.iter().next().unwrap(); // Safe because of the check above
         let first_series = Series::new(first_key, first_col_data);
         DataFrame::new(vec![first_series]).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
@@ -198,13 +196,20 @@ fn optimize(
     for (name, data) in columns.iter() {
         if name != df.get_column_names().first().unwrap() { // Check to avoid adding the first column again
             let series = Series::new(name, data);
-            df.hstack(&[series]).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+            df = df.hstack(&[series]).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
                 format!("Failed to horizontally stack DataFrame: {}", e)
             ))?;
         }
     }
 
-    let mut particles = initialize_particles(num_particles, &asset_configs);
+    let etf_column = df.column("ETF").unwrap().f64().unwrap().clone();  // Access as f64 values
+    let asset_values: Vec<bool> = etf_column.into_iter().map(|x| 
+        match x {
+            Some(value) => value == 1.0,  // Consider only exactly 1.0 as true
+            None => false,  // Handle missing data as non-ETF (or consider an error or default value)
+        }
+    ).collect();
+    let mut particles = initialize_particles(num_particles, num_assets, &asset_values, &asset_configs);
     let mut global_best = Array1::zeros(num_assets);
 
     for _ in 0..num_iterations {
@@ -265,7 +270,8 @@ mod tests {
             Series::new("5 Yr CAGR", &[0.10, 0.05]),
         ]).unwrap();
 
-        let particle = &mut initialize_particles(1, &asset_configs)[0];
+        let asset_types = vec![true, false];
+        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
 
         particle.set_position(Array1::from(vec![0.5, 0.5]));
         particle.set_best_position(Array1::from(vec![0.5, 0.5]));
@@ -284,7 +290,8 @@ mod tests {
             Series::new("5 Yr Dividend Growth", &[0.10, 0.05]),
         ]).unwrap();
 
-        let particle = &mut initialize_particles(1, &asset_configs)[0];
+        let asset_types = vec![true, false];
+        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
 
         particle.set_position(Array1::from(vec![0.5, 0.5]));
         particle.set_best_position(Array1::from(vec![0.5, 0.5]));
@@ -303,7 +310,8 @@ mod tests {
             Series::new("Expense Ratio", &[0.01, 0.02]),
         ]).unwrap();
 
-        let particle = &mut initialize_particles(1, &asset_configs)[0];
+        let asset_types = vec![true, false];
+        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
 
         particle.set_position(Array1::from(vec![0.5, 0.5]));
         particle.set_best_position(Array1::from(vec![0.5, 0.5]));
@@ -322,7 +330,8 @@ mod tests {
             Series::new("Yield", &[0.02, 0.03]),
         ]).unwrap();
 
-        let particle = &mut initialize_particles(1, &asset_configs)[0];
+        let asset_types = vec![true, false];
+        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
 
         particle.set_position(Array1::from(vec![0.5, 0.5]));
         particle.set_best_position(Array1::from(vec![0.5, 0.5]));
@@ -342,7 +351,8 @@ mod tests {
             Series::new("Sector 2", &[0.3, 0.4]),
         ]).unwrap();
 
-        let particle = &mut initialize_particles(1, &asset_configs)[0];
+        let asset_types = vec![true, false];
+        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
 
         particle.set_position(Array1::from(vec![0.5, 0.5]));
         particle.set_best_position(Array1::from(vec![0.5, 0.5]));
@@ -364,10 +374,12 @@ mod tests {
             Series::new("Yield", &[0.02, 0.03]),
             Series::new("Sector 1", &[0.1, 0.2]),
             Series::new("Sector 2", &[0.3, 0.4]),
-            Series::new("Qualified", &[true, false])
+            Series::new("Qualified", &[true, false]),
+            Series::new("ETF", &[0.0, 1.0]),
         ]).unwrap();
 
-        let particle = &mut initialize_particles(1, &asset_configs)[0];
+        let asset_types = vec![true, false];
+        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
 
         particle.set_position(Array1::from(vec![0.5, 0.5]));
         particle.set_best_position(Array1::from(vec![0.5, 0.5]));
