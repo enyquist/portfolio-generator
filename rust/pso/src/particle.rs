@@ -64,7 +64,7 @@ pub fn initialize_particles(
 
     // Preprocess the bool flags into AssetTypes
     let asset_types: Vec<AssetType> = etf_flags.iter()
-        .map(|&is_etf| if is_etf { AssetType::Stock } else { AssetType::ETF })
+        .map(|&is_etf| if is_etf { AssetType::ETF } else { AssetType::Stock })
         .collect();
 
     for _ in 0..num_particles {
@@ -72,10 +72,23 @@ pub fn initialize_particles(
         let mut position = Array1::<f64>::zeros(num_assets);
         let mut velocity = Array1::<f64>::zeros(num_assets);
 
+        // Generate initial positions and velocities
         for i in 0..num_assets {
             let config = asset_configs.iter().find(|config| config.asset_type() == asset_types[i]).unwrap();
             position[i] = rng.gen_range(config.range().min()..config.range().max());
             velocity[i] = rng.gen_range(-0.1..0.1);
+        }
+
+        // Normalize positions so that their sum equals 1.0
+        let total_weight: f64 = position.sum();
+        if total_weight > 0.0 {
+            position.mapv_inplace(|x| x / total_weight);
+        }
+
+        // Ensure individual weight constraints are not violated
+        for i in 0..num_assets {
+            let config = asset_configs.iter().find(|config| config.asset_type() == asset_types[i]).unwrap();
+            position[i] = position[i].clamp(config.range().min(), config.range().max());
         }
 
         particles.push(Particle {
@@ -116,19 +129,29 @@ pub fn update_particles(
     let inertia = initial_inertia * (1.0 - iteration as f64 / max_iterations as f64); // Decrease inertia over time
 
     for particle in particles.iter_mut() {
+        // Update velocity and position
         for i in 0..particle.position.len() {
             let cognitive_component = cognitive * rng.gen::<f64>() * (particle.best_position[i] - particle.position[i]);
             let social_component = social * rng.gen::<f64>() * (global_best_position[i] - particle.position[i]);
             particle.velocity[i] = inertia * particle.velocity[i] + cognitive_component + social_component;
             particle.position[i] += particle.velocity[i];
+        }
 
-            // Apply the correct bounds
+        // Normalize positions so their sum equals 1.0
+        let total_weight: f64 = particle.position.sum();
+        if total_weight > 0.0 {
+            particle.position.mapv_inplace(|x| x / total_weight);
+        }
+
+        // Clamp positions to ensure they are within bounds
+        for i in 0..particle.position.len() {
             particle.position[i] = match particle.asset_types[i] {
-                AssetType::Stock => particle.position[i].min(0.05).max(0.0),
-                AssetType::ETF => particle.position[i].min(0.35).max(0.0),
+                AssetType::Stock => particle.position[i].min(0.05).max(0.01),
+                AssetType::ETF => particle.position[i].min(0.35).max(0.01),
             };
         }
 
+        // Re-evaluate objective function and update best state if necessary
         let score = objective_function(&particle, &df, min_div_growth, min_cagr, min_yield, required_income, initial_capital, div_preference, cagr_preference, yield_preference, salary, &qualified_brackets, &non_qualified_brackets);
 
         if score < *particle.best_score() {
@@ -141,29 +164,46 @@ pub fn update_particles(
 
 pub fn normalize_and_adjust_weights(particles: &mut [Particle]) {
     for particle in particles.iter_mut() {
-        // Drop weights below 1% by setting them to zero
-        for i in 0..particle.position.len() {
-            if particle.position[i] < 0.01 {
-                particle.position[i] = 0.0;
+        let mut weight_to_redistribute = 0.0;
+
+        // Drop weights below 0.01 by setting them to zero and calculate redistribution amount
+        for weight in particle.position.iter_mut() {
+            if *weight < 0.01 {
+                weight_to_redistribute += *weight;
+                *weight = 0.0;
             }
         }
 
         // Calculate the new total weight after dropping low weights
-        let total_weight: f64 = particle.position.sum();
+        let total_weight: f64 = particle.position.iter().filter(|&&w| w >= 0.01).sum();
 
-        // Normalize the remaining weights
-        if total_weight != 0.0 {
-            particle.position.mapv_inplace(|x| x / total_weight);
+        // Normalize the remaining weights and redistribute the dropped weight
+        if total_weight > 0.0 {
+            let scale = (total_weight + weight_to_redistribute) / total_weight;
+            particle.position.iter_mut().for_each(|w| {
+                if *w >= 0.01 {
+                    *w *= scale;
+                }
+            });
         }
 
-        // Reapply constraints ensuring no weight goes below 1% for remaining assets
-        for i in 0..particle.position.len() {
-            if particle.position[i] != 0.0 {  // Only apply bounds to non-zero weights
-                particle.position[i] = match particle.asset_types[i] {
-                    AssetType::Stock => particle.position[i].min(0.05).max(0.01),
-                    AssetType::ETF => particle.position[i].min(0.35).max(0.01),
+        // Ensure all weights adhere to their bounds
+        let mut corrected_total = 0.0;
+        for (i, weight) in particle.position.iter_mut().enumerate() {
+            if *weight >= 0.01 {
+                let bounds = match particle.asset_types[i] {
+                    AssetType::Stock => (0.01, 0.05),
+                    AssetType::ETF => (0.01, 0.35),
                 };
+                *weight = weight.clamp(bounds.0, bounds.1);
+                corrected_total += *weight;
             }
+        }
+
+        // Final normalization if necessary
+        if corrected_total > 1.0 {
+            let scale = 1.0 / corrected_total;
+            particle.position.iter_mut().for_each(|w| *w *= scale);
         }
     }
 }
@@ -225,7 +265,7 @@ mod tests {
         let num_assets = 2;
         let num_particles = 10;
         let configs = create_asset_configs();
-        let asset_types = vec![false, true]; // True for ETF, False for Stock
+        let asset_types = vec![true, false]; // True for ETF, False for Stock
 
         let particles = initialize_particles(num_particles, num_assets, &asset_types, &configs);
 
@@ -234,9 +274,9 @@ mod tests {
             assert_eq!(particle.position.len(), num_assets);
             for (i, &is_etf) in asset_types.iter().enumerate() {
                 let range = if is_etf {
-                    configs[0].range() // ETF range
+                    configs[1].range() // ETF range
                 } else {
-                    configs[1].range() // Stock range
+                    configs[0].range() // Stock range
                 };
                 assert!(
                     particle.position[i] >= range.min() && particle.position[i] <= range.max(),
@@ -249,8 +289,11 @@ mod tests {
 
     #[test]
     fn test_update_particles() {
-        let asset_types = vec![true, false];
-        let mut particles = initialize_particles(1, 2, &asset_types, &create_asset_configs());
+        let num_assets = 2;
+        let num_particles = 10;
+        let asset_types = vec![true, false];  // True for ETF, False for Stock
+        let configs = create_asset_configs();
+        let mut particles = initialize_particles(num_particles, num_assets, &asset_types, &configs);
         let global_best_position = Array1::from(vec![0.02, 0.1]);
         let dummy_df = create_test_dataframe();
 
@@ -263,16 +306,62 @@ mod tests {
             &[],
             &[]
         );
+
+        // Check that particles obey the constraints
+        for particle in particles {
+            assert_eq!(particle.position.len(), num_assets);
+            for (i, &is_etf) in asset_types.iter().enumerate() {
+                let range = if is_etf {
+                    configs[1].range() // ETF range
+                } else {
+                    configs[0].range() // Stock range
+                };
+                assert!(
+                    particle.position[i] >= range.min() && particle.position[i] <= range.max(),
+                    "Particle position out of expected range: position[{}] = {}, range = ({}, {})",
+                    i, particle.position[i], range.min(), range.max()
+                );
+            }
+        }
     }
 
     #[test]
     fn test_normalize_and_adjust_weights() {
-        let asset_types = vec![true, false, true];
-        let mut particles = initialize_particles(1, 3, &asset_types, &create_asset_configs());
-        // Artificially set weights for testing
-        particles[0].position = Array1::from(vec![0.009, 0.009, 0.009]);
+        let num_particles = 1;
+        let num_assets = 5;
+        let asset_types = vec![true, false, true, false, true];  // Assume true for ETF, false for Stock
+        let asset_configs = vec![
+            AssetConfig { asset_type: AssetType::ETF, range: AssetRange { min: 0.01, max: 0.35 } },
+            AssetConfig { asset_type: AssetType::Stock, range: AssetRange { min: 0.01, max: 0.05 } },
+            AssetConfig { asset_type: AssetType::ETF, range: AssetRange { min: 0.01, max: 0.35 } },
+            AssetConfig { asset_type: AssetType::Stock, range: AssetRange { min: 0.01, max: 0.05 } },
+            AssetConfig { asset_type: AssetType::ETF, range: AssetRange { min: 0.01, max: 0.35 } },
+        ];
+    
+        let mut particles = initialize_particles(num_particles, num_assets, &asset_types, &asset_configs);
+        // Artificially set weights to test behavior
+        particles[0].position = Array1::from(vec![0.009, 0.5, 0.009, 0.009, 0.009]); // Intentionally set one weight above max to see clamping and redistribution
+    
         normalize_and_adjust_weights(&mut particles);
+    
         // Check if weights below 0.01 are set to zero
-        assert_eq!(particles[0].position, Array1::from(vec![0.0, 0.0, 0.0]));
+        assert_eq!(particles[0].position[0], 0.0);
+        assert_eq!(particles[0].position[2], 0.0);
+    
+        // Check if the stock weight is clamped to its max and the remaining weight redistributed
+        assert!(particles[0].position[1] <= 0.05);
+
+        particles[0].position = Array1::from(vec![0.35, 0.10, 0.35, 0.05, 0.2]);  // Intentionally set total weight above 1.0 to see normalization
+    
+        normalize_and_adjust_weights(&mut particles);
+
+        // Ensure the total weight is 1 or very close, considering float inaccuracies
+        let total_weight: f64 = particles[0].position.sum();
+        assert!((total_weight - 1.0).abs() < 1e-8);  // Artificial total weight due to test size
+    
+        // Ensure no weight exceeds its max
+        assert!(particles[0].position[1] <= asset_configs[1].range.max);
+        assert!(particles[0].position[0] <= asset_configs[0].range.max);
+        assert!(particles[0].position[2] <= asset_configs[2].range.max);
     }
 }

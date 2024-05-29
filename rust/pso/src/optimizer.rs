@@ -167,7 +167,7 @@ fn optimize(
     cagr_preference: f64,
     yield_preference: f64,
     filing_status: String,
-) -> PyResult<Vec<f64>> {
+) -> PyResult<(Vec<f64>, usize, f64)> {
     let qualified_brackets = QUALIFIED_TAX_BRACKETS.get(filing_status.as_str())
         .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Invalid filing status: {}", filing_status)))?;
 
@@ -197,8 +197,13 @@ fn optimize(
             None => false,  // Handle missing data as non-ETF (or consider an error or default value)
         }
     ).collect();
+
     let mut particles = initialize_particles(num_particles, num_assets, &asset_values, &asset_configs);
     let mut global_best = Array1::zeros(num_assets);
+    let mut global_best_score = f64::INFINITY;
+    let no_improve_iters = 10;
+    let mut current_no_improve_count = 0;
+    let mut iteration_broke = None;
 
     for i in 0..num_iterations {
         update_particles(&mut particles, &global_best, inertia, cognitive, social, i, num_iterations, &df, min_div_growth, min_cagr, min_yield, required_income, initial_capital, div_preference, cagr_preference, yield_preference, salary, &qualified_brackets, &non_qualified_brackets);
@@ -209,8 +214,21 @@ fn optimize(
             if score < *particle.best_score() {
                 particle.set_best_score(score);
                 particle.set_best_position(particle.position().clone());
-                global_best = particle.best_position().clone();
             }
+
+            if score < global_best_score {
+                global_best = particle.best_position().clone();
+                global_best_score = score;
+                current_no_improve_count = 0;
+            }
+        }
+
+        // Check for convergence
+        if current_no_improve_count >= no_improve_iters {
+            iteration_broke = Some(i);
+            break;
+        } else {
+            current_no_improve_count += 1;
         }
     }
 
@@ -218,7 +236,7 @@ fn optimize(
 
     // Extract the position of the best particle
     let best_particle = particles.iter().min_by(|x, y| x.best_score().partial_cmp(&y.best_score()).unwrap()).unwrap();
-    Ok(best_particle.position().to_vec())
+    Ok((best_particle.position().to_vec(), iteration_broke.unwrap_or(num_iterations), global_best_score))
 }
 
 
