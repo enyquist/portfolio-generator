@@ -200,8 +200,8 @@ fn optimize(
     let mut particles = initialize_particles(num_particles, num_assets, &asset_values, &asset_configs);
     let mut global_best = Array1::zeros(num_assets);
 
-    for _ in 0..num_iterations {
-        update_particles(&mut particles, &global_best, inertia, cognitive, social, &df, min_div_growth, min_cagr, min_yield, required_income, initial_capital, div_preference, cagr_preference, yield_preference, salary, &qualified_brackets, &non_qualified_brackets);
+    for i in 0..num_iterations {
+        update_particles(&mut particles, &global_best, inertia, cognitive, social, i, num_iterations, &df, min_div_growth, min_cagr, min_yield, required_income, initial_capital, div_preference, cagr_preference, yield_preference, salary, &qualified_brackets, &non_qualified_brackets);
 
         // Update Global Best if any particle finds a better solution
         for particle in &mut particles {

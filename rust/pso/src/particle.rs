@@ -94,9 +94,11 @@ pub fn initialize_particles(
 pub fn update_particles(
     particles: &mut [Particle],
     global_best_position: &Array1<f64>,
-    inertia: f64,
+    initial_inertia: f64,
     cognitive: f64,
     social: f64,
+    iteration: usize,
+    max_iterations: usize,
     df: &DataFrame,
     min_div_growth: f64,
     min_cagr: f64,
@@ -111,6 +113,7 @@ pub fn update_particles(
     non_qualified_brackets: &[TaxBracket],
 ) {
     let mut rng = rand::thread_rng();
+    let inertia = initial_inertia * (1.0 - iteration as f64 / max_iterations as f64); // Decrease inertia over time
 
     for particle in particles.iter_mut() {
         for i in 0..particle.position.len() {
@@ -254,7 +257,7 @@ mod tests {
         update_particles(
             &mut particles,
             &global_best_position,
-            0.5, 0.3, 0.2, &dummy_df,
+            0.5, 0.3, 0.2, 1, 100, &dummy_df,
             0.1, 0.1, 0.05, 50000.0, 100000.0,
             0.33, 0.33, 0.33, 50000.0,
             &[],

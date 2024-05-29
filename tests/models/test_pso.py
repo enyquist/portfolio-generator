@@ -23,7 +23,7 @@ def main() -> None:
         inertia=0.2,
         cognitive=0.2,
         social=0.2,
-        num_iterations=50,
+        num_iterations=100,
         df_dict=df_dict,
         salary=180_000,
         min_div_growth=0.1,
