@@ -202,8 +202,9 @@ pub fn normalize_and_adjust_weights(particles: &mut [Particle]) {
 
         // Final normalization if necessary
         if corrected_total > 1.0 {
-            let scale = 1.0 / corrected_total;
-            particle.position.iter_mut().for_each(|w| *w *= scale);
+            for weight in particle.position.iter_mut().filter(|&&mut w| w >= 0.01) {
+                *weight /= corrected_total;
+            }
         }
     }
 }
