@@ -153,6 +153,7 @@ fn optimize(
     asset_configs: Vec<AssetConfig>,
     num_assets: usize,
     inertia: f64,
+    decay_rate: f64,
     cognitive: f64,
     social: f64,
     num_iterations: usize,
@@ -206,7 +207,7 @@ fn optimize(
     let mut iteration_broke = None;
 
     for i in 0..num_iterations {
-        update_particles(&mut particles, &global_best, inertia, cognitive, social, i, num_iterations, &df, min_div_growth, min_cagr, min_yield, required_income, initial_capital, div_preference, cagr_preference, yield_preference, salary, &qualified_brackets, &non_qualified_brackets);
+        update_particles(&mut particles, &global_best, inertia, decay_rate, cognitive, social, i, num_iterations, &df, min_div_growth, min_cagr, min_yield, required_income, initial_capital, div_preference, cagr_preference, yield_preference, salary, &qualified_brackets, &non_qualified_brackets);
 
         // Update Global Best if any particle finds a better solution
         for particle in &mut particles {

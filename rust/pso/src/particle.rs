@@ -1,6 +1,7 @@
 use ndarray::Array1;
 use rand::Rng;
 use polars::frame::DataFrame;
+use std::f64::consts::E;
 
 use crate::utils::{AssetType, AssetConfig, TaxBracket};
 use crate::optimizer::{objective_function};
@@ -108,6 +109,7 @@ pub fn update_particles(
     particles: &mut [Particle],
     global_best_position: &Array1<f64>,
     initial_inertia: f64,
+    decay_rate: f64,
     cognitive: f64,
     social: f64,
     iteration: usize,
@@ -126,7 +128,9 @@ pub fn update_particles(
     non_qualified_brackets: &[TaxBracket],
 ) {
     let mut rng = rand::thread_rng();
-    let inertia = initial_inertia * (1.0 - iteration as f64 / max_iterations as f64); // Decrease inertia over time
+    // let inertia = initial_inertia * (1.0 - iteration as f64 / max_iterations as f64); // Decrease inertia over time
+    let inertia = initial_inertia * E.powf(-decay_rate * iteration as f64);
+
 
     for particle in particles.iter_mut() {
         // Update velocity and position
@@ -301,7 +305,7 @@ mod tests {
         update_particles(
             &mut particles,
             &global_best_position,
-            0.5, 0.3, 0.2, 1, 100, &dummy_df,
+            0.5, 0.1, 0.3, 0.2, 1, 100, &dummy_df,
             0.1, 0.1, 0.05, 50000.0, 100000.0,
             0.33, 0.33, 0.33, 50000.0,
             &[],
