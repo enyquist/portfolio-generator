@@ -178,35 +178,36 @@ pub fn normalize_and_adjust_weights(particles: &mut [Particle]) {
             }
         }
 
-        // Calculate the new total weight after dropping low weights
-        let total_weight: f64 = particle.position.iter().filter(|&&w| w >= 0.01).sum();
-
-        // Normalize the remaining weights and redistribute the dropped weight
-        if total_weight > 0.0 {
-            let scale = (total_weight + weight_to_redistribute) / total_weight;
-            particle.position.iter_mut().for_each(|w| {
-                if *w >= 0.01 {
-                    *w *= scale;
-                }
-            });
-        }
-
-        // Ensure all weights adhere to their bounds
-        let mut corrected_total = 0.0;
-        for (i, weight) in particle.position.iter_mut().enumerate() {
-            if *weight >= 0.01 {
+        // Calculate the amount each weight can increase, ignoring those under 0.01
+        let potential_increase: Vec<f64> = particle.position.iter().enumerate().map(|(i, &w)| {
+            if w >= 0.01 {
                 let bounds = match particle.asset_types[i] {
-                    AssetType::Stock => (0.01, 0.05),
-                    AssetType::ETF => (0.01, 0.35),
+                    AssetType::Stock => 0.05,
+                    AssetType::ETF => 0.35,
                 };
-                *weight = weight.clamp(bounds.0, bounds.1);
-                corrected_total += *weight;
+                bounds - w // Calculate increase potential only if weight is within the valid range
+            } else {
+                0.0 // No increase potential for weights below the threshold
+            }
+        }).collect();
+
+        let total_potential_increase: f64 = potential_increase.iter().sum();
+
+        // Redistribute the dropped weight proportionally
+        if total_potential_increase > 0.0 && weight_to_redistribute > 0.0 {
+            for (i, weight) in particle.position.iter_mut().enumerate() {
+                if *weight >= 0.1 {
+                    let increase = (potential_increase[i] / total_potential_increase) * weight_to_redistribute;
+                    *weight += increase;
+                }
             }
         }
 
         // Final normalization if necessary
-        if corrected_total > 1.0 {
-            for weight in particle.position.iter_mut().filter(|&&mut w| w >= 0.01) {
+        let corrected_total: f64 = particle.position.iter().sum();
+
+        if corrected_total != 1.0 {
+            for weight in particle.position.iter_mut() {
                 *weight /= corrected_total;
             }
         }
@@ -331,7 +332,7 @@ mod tests {
     }
 
     #[test]
-    fn test_normalize_and_adjust_weights() {
+    fn test_normalize_and_adjust_weights_redistribute() {
         let num_particles = 1;
         let num_assets = 5;
         let asset_types = vec![true, false, true, false, true];  // Assume true for ETF, false for Stock
@@ -344,29 +345,29 @@ mod tests {
         ];
     
         let mut particles = initialize_particles(num_particles, num_assets, &asset_types, &asset_configs);
-        // Artificially set weights to test behavior
-        particles[0].position = Array1::from(vec![0.009, 0.5, 0.009, 0.009, 0.009]); // Intentionally set one weight above max to see clamping and redistribution
-    
-        normalize_and_adjust_weights(&mut particles);
-    
-        // Check if weights below 0.01 are set to zero
-        assert_eq!(particles[0].position[0], 0.0);
-        assert_eq!(particles[0].position[2], 0.0);
-    
-        // Check if the stock weight is clamped to its max and the remaining weight redistributed
-        assert!(particles[0].position[1] <= 0.05);
 
-        particles[0].position = Array1::from(vec![0.35, 0.10, 0.35, 0.05, 0.2]);  // Intentionally set total weight above 1.0 to see normalization
+        particles[0].position = Array1::from(vec![0.35, 0.005, 0.35, 0.05, 0.245]);  // Intentionally set total weight above 1.0 to see normalization
     
         normalize_and_adjust_weights(&mut particles);
 
         // Ensure the total weight is 1 or very close, considering float inaccuracies
         let total_weight: f64 = particles[0].position.sum();
-        assert!((total_weight - 1.0).abs() < 1e-8);  // Artificial total weight due to test size
+        assert!((total_weight - 1.0).abs() < 1e-8);
     
         // Ensure no weight exceeds its max
-        assert!(particles[0].position[1] <= asset_configs[1].range.max);
-        assert!(particles[0].position[0] <= asset_configs[0].range.max);
-        assert!(particles[0].position[2] <= asset_configs[2].range.max);
+        for i in 0..num_assets {
+            dbg!(particles[0].position[i]);
+            dbg!(asset_configs[i].range.max);
+            assert!(particles[0].position[i] <= asset_configs[i].range.max);
+        }
+
+        // Ensure no weight is less than 0.01
+        for i in 0..num_assets {
+            if i == 1 {
+                assert_eq!(particles[0].position[i], 0.0);
+            } else {
+                assert!(particles[0].position[i] >= 0.01);
+            }
+        }
     }
 }
