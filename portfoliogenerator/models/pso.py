@@ -3,14 +3,18 @@ from typing import Dict, List
 
 # third party libraries
 import numpy as np
+import pandas as pd
 from rspso import optimize as rs_optimize
+
+# portfoliogenerator libraries
+from portfoliogenerator.models.slsqp import Allocator
 
 AssetConfig = Dict[str, Dict[str, float]]
 PortfolioData = Dict[str, List[float | str]]
 
 
 def pso_optimize(
-    df_dict: PortfolioData,
+    df: pd.DataFrame,
     asset_configs: List[AssetConfig],
     salary: float,
     num_particles: int = 50,
@@ -54,11 +58,15 @@ def pso_optimize(
     Returns:
         np.ndarray: _description_
     """
+    # Prepare Data
+    df["ETF"] = df["ETF"].map({"TRUE": 1.0, "FALSE": 0.0, "1": 1.0, "0": 0.0})
+    df_dict = df.to_dict(orient="list")
 
+    # Prepare Parameters
     num_assets = len(df_dict.get("Ticker"))
     numeric_data = {k: v for k, v in df_dict.items() if k != "Ticker"}
 
-    return rs_optimize(
+    weights, iteration_broke, best_score = rs_optimize(
         num_particles,
         asset_configs,
         num_assets,
@@ -79,3 +87,40 @@ def pso_optimize(
         yield_preference,
         filing_status,
     )
+
+    # SLSQP Optimization
+    # Define constants
+    ETFS = list(df[df["ETF"] == 1.0]["Ticker"])
+    ETFS.remove("BST")
+    STOCKS = list(df[df["ETF"] == 0.0]["Ticker"])
+    # STOCKS.remove("CONY")
+    STOCKS.append("BST")
+    SPECIAL_TICKERS = ["NVDY"]
+    df["Qualified"] = df["Qualified"].map({1.0: True, 0.0: False})
+
+    etf_upper_bound = asset_configs[1].get("max")
+    stock_upper_bound = asset_configs[0].get("max")
+
+    brokerage_allocator = Allocator(
+        df=df,
+        initial_capital=initial_capital,
+        required_income=required_income,
+        special_tickers=SPECIAL_TICKERS,
+        etf_list=ETFS,
+        stock_list=STOCKS,
+        special_upper_bound=stock_upper_bound,
+        etf_upper_bound=etf_upper_bound,
+        runs=3,
+        salary=salary,
+    )
+
+    # Optimize
+    weights = brokerage_allocator.optimize(
+        weights,
+        div_growth_weight=div_preference,
+        cagr_weight=cagr_preference,
+        income_weight=yield_preference,
+        diversity_weight=0.0,
+    )
+
+    return weights, iteration_broke, best_score

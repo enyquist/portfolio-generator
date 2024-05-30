@@ -52,14 +52,14 @@ def calculate_taxes(weights: np.array, capital: float, df: pd.DataFrame) -> floa
     return _tax_qualified(qualified_income) + _tax_non_qualified(non_qualified_income)
 
 
-def _tax_qualified(income: float) -> float:
+def _tax_qualified(income: float, salary: float) -> float:
     brackets = [
         (94_050, 0.0),  # 0% for income up to $94,050
         (583_750, 0.15),  # 15% for income up to $583,750
         (float("inf"), 0.20),  # 20% for income over $583,751
     ]
 
-    total_income = income + SALARY_INCOME
+    total_income = income + salary
 
     for limit, rate in brackets:
         if total_income <= limit:
@@ -70,7 +70,7 @@ def _tax_qualified(income: float) -> float:
     return income * tax_rate
 
 
-def _tax_non_qualified(income: float) -> float:
+def _tax_non_qualified(income: float, salary: float) -> float:
     # Define the tax brackets and rates for Married Filing Jointly
     brackets = [
         (22000, 0.10),  # 10% for income up to $22,000
@@ -99,13 +99,13 @@ def _tax_non_qualified(income: float) -> float:
         return tax_owed
 
     # Calculate total income (W2 income + unqualified dividends)
-    total_income = SALARY_INCOME + income
+    total_income = salary + income
 
     # Calculate the total tax owed on the combined income
     total_tax_owed = calculate_tax(total_income)
 
     # Calculate the tax owed on the W2 income alone
-    salary_tax_owed = calculate_tax(SALARY_INCOME)
+    salary_tax_owed = calculate_tax(salary)
 
     # The tax attributable to the unqualified dividends is the difference
     tax_on_dividends = total_tax_owed - salary_tax_owed
