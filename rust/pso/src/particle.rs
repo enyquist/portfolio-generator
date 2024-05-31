@@ -46,11 +46,6 @@ impl Particle {
     pub fn set_best_score(&mut self, new_best_score: f64) {
         self.best_score = new_best_score;
     }
-
-    // Setter for asset_types
-    pub fn set_asset_types(&mut self, new_asset_types: Vec<AssetType>) {
-        self.asset_types = new_asset_types;
-    }
 }
 
 
@@ -356,8 +351,6 @@ mod tests {
     
         // Ensure no weight exceeds its max
         for i in 0..num_assets {
-            dbg!(particles[0].position[i]);
-            dbg!(asset_configs[i].range.max);
             assert!(particles[0].position[i] <= asset_configs[i].range.max);
         }
 
