@@ -144,8 +144,8 @@ pub fn update_particles(
         // Clamp positions to ensure they are within bounds
         for i in 0..particle.position.len() {
             particle.position[i] = match particle.asset_types[i] {
-                AssetType::Stock => particle.position[i].min(0.05).max(0.01),
-                AssetType::ETF => particle.position[i].min(0.35).max(0.01),
+                AssetType::Stock => particle.position[i].min(0.05).max(0.00),
+                AssetType::ETF => particle.position[i].min(0.35).max(0.00),
             };
         }
 
@@ -190,7 +190,7 @@ pub fn normalize_and_adjust_weights(particles: &mut [Particle]) {
         // Redistribute the dropped weight proportionally
         if total_potential_increase > 0.0 && weight_to_redistribute > 0.0 {
             for (i, weight) in particle.position.iter_mut().enumerate() {
-                if *weight >= 0.1 {
+                if *weight >= 0.01 {
                     let increase = (potential_increase[i] / total_potential_increase) * weight_to_redistribute;
                     *weight += increase;
                 }
@@ -202,7 +202,9 @@ pub fn normalize_and_adjust_weights(particles: &mut [Particle]) {
 
         if corrected_total != 1.0 {
             for weight in particle.position.iter_mut() {
-                *weight /= corrected_total;
+                if *weight > 0.01 {
+                    *weight /= corrected_total;
+                }
             }
         }
     }
@@ -215,27 +217,24 @@ mod tests {
     use crate::utils::AssetRange;
     use polars::prelude::*;
 
-    // Helper function to create AssetConfig
-    fn create_asset_configs() -> Vec<AssetConfig> {
-        let mut configs = Vec::new();
-    
-        let stock_range = AssetRange { min: 0.0, max: 0.05 };
-        let stock_config = AssetConfig {
-            asset_type: AssetType::Stock,
-            range: stock_range,
-        };
-    
-        let etf_range = AssetRange { min: 0.0, max: 0.35 };
-        let etf_config = AssetConfig {
-            asset_type: AssetType::ETF,
-            range: etf_range,
-        };
-    
-        // Add to configs vector
-        configs.push(stock_config);
-        configs.push(etf_config);
-    
-        configs
+    // Helper function to create AssetConfig based on a vector of bools
+    fn create_asset_configs(asset_types: &[bool]) -> Vec<AssetConfig> {
+        let stock_range = AssetRange { min: 0.00, max: 0.05 };
+        let etf_range = AssetRange { min: 0.00, max: 0.35 };
+
+        asset_types.iter().map(|&is_etf| {
+            if !is_etf {
+                AssetConfig {
+                    asset_type: AssetType::ETF,
+                    range: etf_range,
+                }
+            } else {
+                AssetConfig {
+                    asset_type: AssetType::Stock,
+                    range: stock_range,
+                }
+            }
+        }).collect()
     }
 
     // Helper functions to create a DataFrame
@@ -264,8 +263,8 @@ mod tests {
     fn test_initialize_particles() {
         let num_assets = 2;
         let num_particles = 10;
-        let configs = create_asset_configs();
         let asset_types = vec![true, false]; // True for ETF, False for Stock
+        let configs = create_asset_configs(&asset_types);
 
         let particles = initialize_particles(num_particles, num_assets, &asset_types, &configs);
 
@@ -292,7 +291,7 @@ mod tests {
         let num_assets = 2;
         let num_particles = 10;
         let asset_types = vec![true, false];  // True for ETF, False for Stock
-        let configs = create_asset_configs();
+        let configs = create_asset_configs(&asset_types);
         let mut particles = initialize_particles(num_particles, num_assets, &asset_types, &configs);
         let global_best_position = Array1::from(vec![0.02, 0.1]);
         let dummy_df = create_test_dataframe();
@@ -309,7 +308,10 @@ mod tests {
 
         // Check that particles obey the constraints
         for particle in particles {
+            // Check that there are the same number of positions as assets
             assert_eq!(particle.position.len(), num_assets);
+
+            // Check that each position is within the expected range
             for (i, &is_etf) in asset_types.iter().enumerate() {
                 let range = if is_etf {
                     configs[1].range() // ETF range
@@ -322,6 +324,11 @@ mod tests {
                     i, particle.position[i], range.min(), range.max()
                 );
             }
+
+            // Check that the total weight of the positions is 1.0
+            // let total_weight: f64 = particle.position().iter().sum();
+            // dbg!(total_weight);
+            // assert!((total_weight - 1.0).abs() < 1e-8);
         }
     }
 
