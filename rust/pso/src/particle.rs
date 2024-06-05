@@ -324,11 +324,6 @@ mod tests {
                     i, particle.position[i], range.min(), range.max()
                 );
             }
-
-            // Check that the total weight of the positions is 1.0
-            // let total_weight: f64 = particle.position().iter().sum();
-            // dbg!(total_weight);
-            // assert!((total_weight - 1.0).abs() < 1e-8);
         }
     }
 
