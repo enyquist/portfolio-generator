@@ -46,16 +46,6 @@ impl Particle {
     pub fn set_best_score(&mut self, new_best_score: f64) {
         self.best_score = new_best_score;
     }
-
-    // // Getter for asset_types
-    // pub fn asset_types(&self) -> &Vec<AssetType> {
-    //     &self.asset_types
-    // }
-
-    // // Setter for asset_types
-    // pub fn set_asset_types(&mut self, new_asset_types: Vec<AssetType>) {
-    //     self.asset_types = new_asset_types;
-    // }
 }
 
 
