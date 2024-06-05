@@ -207,7 +207,7 @@ fn optimize(
     let mut iteration_broke = None;
 
     for i in 0..num_iterations {
-        update_particles(&mut particles, &global_best, inertia, decay_rate, cognitive, social, i, num_iterations, &df, min_div_growth, min_cagr, min_yield, required_income, initial_capital, div_preference, cagr_preference, yield_preference, salary, &qualified_brackets, &non_qualified_brackets);
+        update_particles(&mut particles, &global_best, inertia, decay_rate, cognitive, social, i, &df, min_div_growth, min_cagr, min_yield, required_income, initial_capital, div_preference, cagr_preference, yield_preference, salary, &qualified_brackets, &non_qualified_brackets);
 
         // Update Global Best if any particle finds a better solution
         for particle in &mut particles {
@@ -244,46 +244,21 @@ fn optimize(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::{AssetType, AssetRange, AssetConfig};
-
-    // Helper function to create AssetConfig
-    fn create_asset_configs() -> Vec<AssetConfig> {
-        let mut configs = Vec::new();
-    
-        let stock_range = AssetRange { min: 0.0, max: 0.05 };
-        let stock_config = AssetConfig {
-            asset_type: AssetType::Stock,
-            range: stock_range,
-        };
-    
-        let etf_range = AssetRange { min: 0.0, max: 0.35 };
-        let etf_config = AssetConfig {
-            asset_type: AssetType::ETF,
-            range: etf_range,
-        };
-    
-        // Add to configs vector
-        configs.push(stock_config);
-        configs.push(etf_config);
-    
-        configs
-    }
+    use crate::utils::AssetType;
 
     #[test]
     fn test_calculate_cagr() {
-        let asset_configs = create_asset_configs();
-
         let df = DataFrame::new(vec![
             Series::new("5 Yr CAGR", &[0.10, 0.05]),
         ]).unwrap();
 
-        let asset_types = vec![true, false];
-        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
-
-        particle.set_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_score(0.0);
-        particle.set_asset_types(vec![AssetType::Stock, AssetType::ETF]);
+        let particle = Particle {
+            position: Array1::from(vec![0.5, 0.5]),
+            velocity: Array1::from(vec![0.0, 0.0]),
+            best_position: Array1::from(vec![0.5, 0.5]),
+            best_score: 0.0,
+            asset_types: vec![AssetType::Stock, AssetType::ETF],
+        };
 
         let cagr = calculate_cagr(&particle, &df);
         assert_eq!((cagr * 1000.0).round() / 1000.0, 0.075);
@@ -291,19 +266,17 @@ mod tests {
 
     #[test]
     fn test_calculate_dividend_growth() {
-        let asset_configs = create_asset_configs();
-
         let df = DataFrame::new(vec![
             Series::new("5 Yr Dividend Growth", &[0.10, 0.05]),
         ]).unwrap();
 
-        let asset_types = vec![true, false];
-        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
-
-        particle.set_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_score(0.0);
-        particle.set_asset_types(vec![AssetType::Stock, AssetType::ETF]);
+        let particle = Particle {
+            position: Array1::from(vec![0.5, 0.5]),
+            velocity: Array1::from(vec![0.0, 0.0]),
+            best_position: Array1::from(vec![0.5, 0.5]),
+            best_score: 0.0,
+            asset_types: vec![AssetType::Stock, AssetType::ETF],
+        };
 
         let dividend_growth = calculate_dividend_growth(&particle, &df);
         assert_eq!((dividend_growth * 1000.0).round() / 1000.0, 0.075);
@@ -311,19 +284,17 @@ mod tests {
 
     #[test]
     fn test_calculate_expense_ratio() {
-        let asset_configs = create_asset_configs();
-
         let df = DataFrame::new(vec![
             Series::new("Expense Ratio", &[0.01, 0.02]),
         ]).unwrap();
 
-        let asset_types = vec![true, false];
-        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
-
-        particle.set_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_score(0.0);
-        particle.set_asset_types(vec![AssetType::Stock, AssetType::ETF]);
+        let particle = Particle {
+            position: Array1::from(vec![0.5, 0.5]),
+            velocity: Array1::from(vec![0.0, 0.0]),
+            best_position: Array1::from(vec![0.5, 0.5]),
+            best_score: 0.0,
+            asset_types: vec![AssetType::Stock, AssetType::ETF],
+        };
 
         let expense_ratio = calculate_expense_ratio(&particle, &df);
         assert_eq!((expense_ratio * 1000.0).round() / 1000.0, 0.015);
@@ -331,19 +302,17 @@ mod tests {
 
     #[test]
     fn test_calculate_yield() {
-        let asset_configs = create_asset_configs();
-
         let df = DataFrame::new(vec![
             Series::new("Yield", &[0.02, 0.03]),
         ]).unwrap();
 
-        let asset_types = vec![true, false];
-        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
-
-        particle.set_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_score(0.0);
-        particle.set_asset_types(vec![AssetType::Stock, AssetType::ETF]);
+        let particle = Particle {
+            position: Array1::from(vec![0.5, 0.5]),
+            velocity: Array1::from(vec![0.0, 0.0]),
+            best_position: Array1::from(vec![0.5, 0.5]),
+            best_score: 0.0,
+            asset_types: vec![AssetType::Stock, AssetType::ETF],
+        };
 
         let div_yield = calculate_yield(&particle, &df);
         assert_eq!((div_yield * 1000.0).round() / 1000.0, 0.025);
@@ -351,20 +320,18 @@ mod tests {
 
     #[test]
     fn test_calculate_diversity_penalty() {
-        let asset_configs = create_asset_configs();
-
-        let df = DataFrame::new(vec![
+       let df = DataFrame::new(vec![
             Series::new("Sector 1", &[0.1, 0.2]),
             Series::new("Sector 2", &[0.3, 0.4]),
         ]).unwrap();
 
-        let asset_types = vec![true, false];
-        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
-
-        particle.set_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_score(0.0);
-        particle.set_asset_types(vec![AssetType::Stock, AssetType::ETF]);
+        let particle = Particle {
+            position: Array1::from(vec![0.5, 0.5]),
+            velocity: Array1::from(vec![0.0, 0.0]),
+            best_position: Array1::from(vec![0.5, 0.5]),
+            best_score: 0.0,
+            asset_types: vec![AssetType::Stock, AssetType::ETF],
+        };
 
         let diversity_penalty = calculate_diversity_penalty(&particle, &df);
         assert_eq!((diversity_penalty * 1000.0).round() / 1000.0, 160.0);
@@ -372,8 +339,6 @@ mod tests {
 
     #[test]
     fn test_objective_function() {
-        let asset_configs = create_asset_configs();
-
         let df = DataFrame::new(vec![
             Series::new("5 Yr CAGR", &[0.10, 0.05]),
             Series::new("5 Yr Dividend Growth", &[0.10, 0.05]),
@@ -385,13 +350,13 @@ mod tests {
             Series::new("ETF", &[0.0, 1.0]),
         ]).unwrap();
 
-        let asset_types = vec![true, false];
-        let particle = &mut initialize_particles(1, 2, &asset_types, &asset_configs)[0];
-
-        particle.set_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_position(Array1::from(vec![0.5, 0.5]));
-        particle.set_best_score(0.0);
-        particle.set_asset_types(vec![AssetType::Stock, AssetType::ETF]);
+        let particle = Particle {
+            position: Array1::from(vec![0.5, 0.5]),
+            velocity: Array1::from(vec![0.0, 0.0]),
+            best_position: Array1::from(vec![0.5, 0.5]),
+            best_score: 0.0,
+            asset_types: vec![AssetType::Stock, AssetType::ETF],
+        };
 
         let qualified_brackets = ORDINARY_TAX_BRACKETS.get("Single").unwrap();
         let non_qualified_brackets = ORDINARY_TAX_BRACKETS.get("Single").unwrap();

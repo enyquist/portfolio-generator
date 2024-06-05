@@ -9,11 +9,11 @@ use crate::optimizer::{objective_function};
 
 #[derive(Debug, Clone)]
 pub struct Particle {
-    position: Array1<f64>,
-    velocity: Array1<f64>,
-    best_position: Array1<f64>,
-    best_score: f64,
-    asset_types: Vec<AssetType>,  // Indicates the type of asset each weight corresponds to
+    pub position: Array1<f64>,
+    pub velocity: Array1<f64>,
+    pub best_position: Array1<f64>,
+    pub best_score: f64,
+    pub asset_types: Vec<AssetType>,  // Indicates the type of asset each weight corresponds to
 }
 
 impl Particle {
@@ -47,15 +47,15 @@ impl Particle {
         self.best_score = new_best_score;
     }
 
-    // Getter for asset_types
-    pub fn asset_types(&self) -> &Vec<AssetType> {
-        &self.asset_types
-    }
+    // // Getter for asset_types
+    // pub fn asset_types(&self) -> &Vec<AssetType> {
+    //     &self.asset_types
+    // }
 
-    // Setter for asset_types
-    pub fn set_asset_types(&mut self, new_asset_types: Vec<AssetType>) {
-        self.asset_types = new_asset_types;
-    }
+    // // Setter for asset_types
+    // pub fn set_asset_types(&mut self, new_asset_types: Vec<AssetType>) {
+    //     self.asset_types = new_asset_types;
+    // }
 }
 
 
@@ -118,7 +118,6 @@ pub fn update_particles(
     cognitive: f64,
     social: f64,
     iteration: usize,
-    max_iterations: usize,
     df: &DataFrame,
     min_div_growth: f64,
     min_cagr: f64,
@@ -311,7 +310,7 @@ mod tests {
         update_particles(
             &mut particles,
             &global_best_position,
-            0.5, 0.1, 0.3, 0.2, 1, 100, &dummy_df,
+            0.5, 0.1, 0.3, 0.2, 1, &dummy_df,
             0.1, 0.1, 0.05, 50000.0, 100000.0,
             0.33, 0.33, 0.33, 50000.0,
             &[],
