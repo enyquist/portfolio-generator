@@ -4,6 +4,7 @@ use crate::models::{OptimizationParams, OptimizationRequest, OptimizationResult,
 use crate::objective::objective_function;
 use actix_web::{post, web, get, HttpResponse, Responder};
 use nlopt::{Algorithm, Nlopt, Target};
+use validator::Validate;
 
 #[post("/optimize")]
 pub async fn optimize(params: web::Json<OptimizationRequest>) -> impl Responder {
@@ -11,6 +12,11 @@ pub async fn optimize(params: web::Json<OptimizationRequest>) -> impl Responder 
     let dimension = params.dimension;
     let lower_bounds = &params.lower_bounds;
     let upper_bounds = &params.upper_bounds;
+
+     // Perform validation
+     if let Err(validation_errors) = params.validate() {
+        return HttpResponse::BadRequest().json(validation_errors);
+    }
 
     // Define tax brackets based on filing status
     let (qualified_brackets, non_qualified_brackets) = match params.filing_status {
@@ -28,27 +34,6 @@ pub async fn optimize(params: web::Json<OptimizationRequest>) -> impl Responder 
             get_head_of_household_non_qualified_brackets(),
         ),
     };
-
-    // Validate bounds
-    if lower_bounds.len() != dimension || upper_bounds.len() != dimension {
-        return HttpResponse::BadRequest().json(OptimizationResult {
-            success: false,
-            x: None,
-            objective_value: None,
-            message: "Bounds size does not match dimension".to_string(),
-        });
-    }
-
-    // Validate that the sum of upper_bounds is >= 1
-    let sum_upper_bounds: f64 = upper_bounds.iter().sum();
-    if sum_upper_bounds < 1.0 {
-        return HttpResponse::BadRequest().json(OptimizationResult {
-            success: false,
-            x: None,
-            objective_value: None,
-            message: "Sum of upper bounds is less than 1, problem infeasible.".to_string(),
-        });
-    }
 
     // Prepare optimization parameters
     let opt_params = OptimizationParams {
@@ -149,84 +134,84 @@ pub async fn optimize(params: web::Json<OptimizationRequest>) -> impl Responder 
 }
 
 // Helper functions to get tax brackets based on filing status
-fn get_single_qualified_brackets() -> Vec<TaxBracket> {
+fn get_single_non_qualified_brackets() -> Vec<TaxBracket> {
     vec![
-        TaxBracket { rate: 0.0, threshold: Some(11000.0) },
-        TaxBracket { rate: 0.12, threshold: Some(44725.0) },
-        TaxBracket { rate: 0.22, threshold: Some(95375.0) },
-        TaxBracket { rate: 0.24, threshold: Some(182100.0) },
-        TaxBracket { rate: 0.32, threshold: Some(231250.0) },
-        TaxBracket { rate: 0.35, threshold: Some(578125.0) },
+        TaxBracket { rate: 0.0, threshold: Some(11600.0) },
+        TaxBracket { rate: 0.12, threshold: Some(47150.0) },
+        TaxBracket { rate: 0.22, threshold: Some(100526.0) },
+        TaxBracket { rate: 0.24, threshold: Some(191950.0) },
+        TaxBracket { rate: 0.32, threshold: Some(243725.0) },
+        TaxBracket { rate: 0.35, threshold: Some(609350.0) },
         TaxBracket { rate: 0.37, threshold: None }, // No upper limit
     ]
 }
 
-fn get_single_non_qualified_brackets() -> Vec<TaxBracket> {
+fn get_single_qualified_brackets() -> Vec<TaxBracket> {
     vec![
-        TaxBracket { rate: 0.0, threshold: Some(11000.0) },
-        TaxBracket { rate: 0.15, threshold: Some(44725.0) },
+        TaxBracket { rate: 0.0, threshold: Some(47025.0) },
+        TaxBracket { rate: 0.15, threshold: Some(518900.0) },
         TaxBracket { rate: 0.20, threshold: None },
     ]
 }
 
 // Define similar functions for other filing statuses
 
-fn get_married_jointly_qualified_brackets() -> Vec<TaxBracket> {
-    vec![
-        TaxBracket { rate: 0.0, threshold: Some(22000.0) },
-        TaxBracket { rate: 0.12, threshold: Some(89450.0) },
-        TaxBracket { rate: 0.22, threshold: Some(190750.0) },
-        TaxBracket { rate: 0.24, threshold: Some(364200.0) },
-        TaxBracket { rate: 0.32, threshold: Some(462500.0) },
-        TaxBracket { rate: 0.35, threshold: Some(693750.0) },
-        TaxBracket { rate: 0.37, threshold: None },
-    ]
-}
-
 fn get_married_jointly_non_qualified_brackets() -> Vec<TaxBracket> {
     vec![
-        TaxBracket { rate: 0.0, threshold: Some(22000.0) },
-        TaxBracket { rate: 0.15, threshold: Some(89450.0) },
-        TaxBracket { rate: 0.20, threshold: None },
+        TaxBracket { rate: 0.0, threshold: Some(23200.0) },
+        TaxBracket { rate: 0.12, threshold: Some(94300.0) },
+        TaxBracket { rate: 0.22, threshold: Some(201050.0) },
+        TaxBracket { rate: 0.24, threshold: Some(383900.0) },
+        TaxBracket { rate: 0.32, threshold: Some(487450.0) },
+        TaxBracket { rate: 0.35, threshold: Some(731200.0) },
+        TaxBracket { rate: 0.37, threshold: None },
     ]
 }
 
-fn get_married_separately_qualified_brackets() -> Vec<TaxBracket> {
+fn get_married_jointly_qualified_brackets() -> Vec<TaxBracket> {
     vec![
-        TaxBracket { rate: 0.0, threshold: Some(11000.0) },
-        TaxBracket { rate: 0.12, threshold: Some(44725.0) },
-        TaxBracket { rate: 0.22, threshold: Some(95375.0) },
-        TaxBracket { rate: 0.24, threshold: Some(182100.0) },
-        TaxBracket { rate: 0.32, threshold: Some(231250.0) },
-        TaxBracket { rate: 0.35, threshold: Some(346875.0) },
-        TaxBracket { rate: 0.37, threshold: None },
+        TaxBracket { rate: 0.0, threshold: Some(94050.0) },
+        TaxBracket { rate: 0.15, threshold: Some(583750.0) },
+        TaxBracket { rate: 0.20, threshold: None },
     ]
 }
 
 fn get_married_separately_non_qualified_brackets() -> Vec<TaxBracket> {
     vec![
-        TaxBracket { rate: 0.0, threshold: Some(11000.0) },
-        TaxBracket { rate: 0.15, threshold: Some(44725.0) },
-        TaxBracket { rate: 0.20, threshold: None },
+        TaxBracket { rate: 0.0, threshold: Some(11600.0) },
+        TaxBracket { rate: 0.12, threshold: Some(47150.0) },
+        TaxBracket { rate: 0.22, threshold: Some(100525.0) },
+        TaxBracket { rate: 0.24, threshold: Some(191950.0) },
+        TaxBracket { rate: 0.32, threshold: Some(243725.0) },
+        TaxBracket { rate: 0.35, threshold: Some(365600.0) },
+        TaxBracket { rate: 0.37, threshold: None },
     ]
 }
 
-fn get_head_of_household_qualified_brackets() -> Vec<TaxBracket> {
+fn get_married_separately_qualified_brackets() -> Vec<TaxBracket> {
     vec![
-        TaxBracket { rate: 0.0, threshold: Some(15700.0) },
-        TaxBracket { rate: 0.12, threshold: Some(59850.0) },
-        TaxBracket { rate: 0.22, threshold: Some(95350.0) },
-        TaxBracket { rate: 0.24, threshold: Some(182100.0) },
-        TaxBracket { rate: 0.32, threshold: Some(231250.0) },
-        TaxBracket { rate: 0.35, threshold: Some(578100.0) },
-        TaxBracket { rate: 0.37, threshold: None },
+        TaxBracket { rate: 0.0, threshold: Some(47025.0) },
+        TaxBracket { rate: 0.15, threshold: Some(291850.0) },
+        TaxBracket { rate: 0.20, threshold: None },
     ]
 }
 
 fn get_head_of_household_non_qualified_brackets() -> Vec<TaxBracket> {
     vec![
-        TaxBracket { rate: 0.0, threshold: Some(15700.0) },
-        TaxBracket { rate: 0.15, threshold: Some(59850.0) },
+        TaxBracket { rate: 0.0, threshold: Some(16550.0) },
+        TaxBracket { rate: 0.12, threshold: Some(63100.0) },
+        TaxBracket { rate: 0.22, threshold: Some(100500.0) },
+        TaxBracket { rate: 0.24, threshold: Some(191950.0) },
+        TaxBracket { rate: 0.32, threshold: Some(243700.0) },
+        TaxBracket { rate: 0.35, threshold: Some(609350.0) },
+        TaxBracket { rate: 0.37, threshold: None },
+    ]
+}
+
+fn get_head_of_household_qualified_brackets() -> Vec<TaxBracket> {
+    vec![
+        TaxBracket { rate: 0.0, threshold: Some(63000.0) },
+        TaxBracket { rate: 0.15, threshold: Some(551350.0) },
         TaxBracket { rate: 0.20, threshold: None },
     ]
 }
@@ -234,4 +219,35 @@ fn get_head_of_household_non_qualified_brackets() -> Vec<TaxBracket> {
 #[get("/health")]
 pub async fn health_check() -> impl Responder {
     HttpResponse::Ok().body("OK")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_missing_column_keys() {
+        let request = OptimizationRequest {
+            dimension: 3,
+            lower_bounds: vec![0.0; 3],
+            upper_bounds: vec![1.0; 3],
+            initial_capital: 100000.0,
+            salary: 50000.0,
+            required_income: 20000.0,
+            min_div_growth: 0.05,
+            min_cagr: 0.07,
+            min_yield: 0.03,
+            div_preference: 0.5,
+            cagr_preference: 0.3,
+            yield_preference: 0.2,
+            filing_status: FilingStatus::Single,
+            columns: HashMap::new(), // Empty columns
+        };
+
+        let result = request.validate();
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.field_errors().contains_key("columns"));
+    }
 }

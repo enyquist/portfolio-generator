@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use ordered_float::NotNan;
 
 pub fn calculate_dividend_growth(x: &[f64], columns: &HashMap<String, Vec<f64>>) -> f64 {
-    let div_growth_rates = &columns["div_growth_rates"]; // Replace with actual key
+    let div_growth_rates = &columns["dividend_growth_rates"]; // Replace with actual key
     x.iter()
         .zip(div_growth_rates.iter())
         .map(|(xi, rate)| xi * rate)
@@ -137,7 +137,7 @@ mod tests {
     fn test_calculate_dividend_growth() {
         let x = vec![0.3, 0.5, 0.2];
         let mut columns = HashMap::new();
-        columns.insert("div_growth_rates".to_string(), vec![0.04, 0.05, 0.06]);
+        columns.insert("dividend_growth_rates".to_string(), vec![0.04, 0.05, 0.06]);
 
         let result = calculate_dividend_growth(&x, &columns);
         let expected = 0.3 * 0.04 + 0.5 * 0.05 + 0.2 * 0.06;
@@ -178,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_diversity_penalty_hhi_with_f64_sectors() {
+    fn test_calculate_diversity_penalty() {
         let x = vec![0.3, 0.4, 0.3];
         let mut columns = HashMap::new();
         columns.insert(
