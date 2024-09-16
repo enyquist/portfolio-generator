@@ -170,6 +170,51 @@ async fn test_optimize_endpoint_missing_info_request() {
     );
 }
 
+#[actix_web::test]
+async fn test_optimize_endpoint_invalid_filing_status() {
+    let mut app = test::init_service(App::new().service(optimize)).await;
+
+    // Prepare invalid JSON payload (invalid 'filing_status')
+    let payload = json!({
+        "dimension": 3,
+        "lower_bounds": [0.0, 0.0, 0.0],
+        "upper_bounds": [1.0, 1.0, 1.0],
+        "initial_capital": 100000.0,
+        "salary": 50000.0,
+        "required_income": 20000.0,
+        "min_div_growth": 0.05,
+        "min_cagr": 0.07,
+        "min_yield": 0.03,
+        "div_preference": 0.5,
+        "cagr_preference": 0.3,
+        "yield_preference": 0.2,
+        "filing_status": "baller",
+        "columns": {}
+    });
+
+    let req = test::TestRequest::post()
+        .uri("/optimize")
+        .insert_header(("Content-Type", "application/json"))
+        .set_payload(payload.to_string())
+        .to_request();
+
+    let resp = test::call_service(&mut app, req).await;
+
+    // Assert that the response status is 400 Bad Request
+    assert_eq!(resp.status(), 400);
+
+    // Optionally, check the response body
+    let response_body = test::read_body(resp).await;
+    let response_str = std::str::from_utf8(&response_body).unwrap();
+
+    // The error message may vary; you can check if it contains certain text
+    assert!(
+        response_str.contains("unknown variant"),
+        "Expected error message about unknown variant, got: {}",
+        response_str
+    );
+}
+
 #[actix_rt::test]
 async fn test_optimize_upper_bounds_infeasible() {
     let mut app = test::init_service(App::new().service(optimize)).await;
