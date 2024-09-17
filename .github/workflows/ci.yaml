@@ -32,5 +32,4 @@ jobs:
 
     - name: Run container tests
       run: |
-        docker run -d -p 8080:8080 optimization_server
         pytest tests/integration/test_container.py
