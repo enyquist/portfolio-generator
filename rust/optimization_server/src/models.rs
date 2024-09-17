@@ -56,6 +56,7 @@ pub struct OptimizationRequest {
 
     // Filing status
     pub filing_status: FilingStatus,
+    pub redistribution_threshold: f64,
 
     // Columns as key-value pairs
     pub columns: HashMap<String, Vec<f64>>,
@@ -129,6 +130,12 @@ impl Validate for OptimizationRequest {
         // Validate 'filing_status'
         if let Err(e) = validate_filing_status(&self.filing_status) {
             errors.add("filing_status", e);
+        }
+
+        // Valdiate 'redistribution_threshold'
+        if self.redistribution_threshold < 0.0 || self.redistribution_threshold > 1.0 {
+            let error = ValidationError::new("range");
+            errors.add("redistribution_threshold", error.with_message(Borrowed("Redistribution threshold must be in [0, 1]")));
         }
 
         // Validate bounds lengths
@@ -247,6 +254,7 @@ mod tests {
             cagr_preference: 0.3,
             yield_preference: 0.2,
             filing_status: FilingStatus::Single,
+            redistribution_threshold: 0.01,
             columns: HashMap::new(), // Empty columns
         };
 
@@ -272,6 +280,7 @@ mod tests {
             cagr_preference: 0.3,
             yield_preference: 0.2,
             filing_status: FilingStatus::Single,
+            redistribution_threshold: 0.01,
             columns: HashMap::new(),
         };
 
@@ -297,6 +306,7 @@ mod tests {
             cagr_preference: 0.3,
             yield_preference: 0.2,
             filing_status: FilingStatus::Single,
+            redistribution_threshold: 0.01,
             columns: HashMap::new(),
         };
 
@@ -322,6 +332,7 @@ mod tests {
             cagr_preference: 0.3,
             yield_preference: 0.2,
             filing_status: FilingStatus::Single,
+            redistribution_threshold: 0.01,
             columns: HashMap::new(),
         };
 
@@ -347,6 +358,7 @@ mod tests {
             cagr_preference: 0.3,
             yield_preference: 0.2,
             filing_status: FilingStatus::Single,
+            redistribution_threshold: 0.01,
             columns: HashMap::new(),
         };
 
@@ -372,6 +384,7 @@ mod tests {
             cagr_preference: 0.3,
             yield_preference: 0.2,
             filing_status: FilingStatus::Single,
+            redistribution_threshold: 0.01,
             columns: HashMap::new(),
         };
 
@@ -397,6 +410,7 @@ mod tests {
             cagr_preference: 0.3,
             yield_preference: 0.2,
             filing_status: FilingStatus::Single,
+            redistribution_threshold: 0.01,
             columns: HashMap::new(),
         };
 
@@ -422,6 +436,7 @@ mod tests {
             cagr_preference: 0.3,
             yield_preference: 0.2,
             filing_status: FilingStatus::Single,
+            redistribution_threshold: 0.01,
             columns: HashMap::new(),
         };
 
@@ -447,6 +462,7 @@ mod tests {
             cagr_preference: 0.3,
             yield_preference: 0.2,
             filing_status: FilingStatus::Single,
+            redistribution_threshold: 0.01,
             columns: HashMap::new(),
         };
 
@@ -472,6 +488,7 @@ mod tests {
             cagr_preference: -0.3, // Invalid cagr_preference
             yield_preference: 0.2,
             filing_status: FilingStatus::Single,
+            redistribution_threshold: 0.01,
             columns: HashMap::new(),
         };
 
@@ -497,6 +514,7 @@ mod tests {
             cagr_preference: 0.3,
             yield_preference: -0.2, // Invalid yield_preference
             filing_status: FilingStatus::Single,
+            redistribution_threshold: 0.01,
             columns: HashMap::new(),
         };
 
@@ -504,5 +522,31 @@ mod tests {
         assert!(result.is_err());
         let errors = result.unwrap_err();
         assert!(errors.field_errors().contains_key("yield_preference"));
+    }
+
+    #[test]
+    fn test_invalid_redistribution_threshold() {
+        let request = OptimizationRequest {
+            dimension: 3,
+            lower_bounds: vec![0.0; 3],
+            upper_bounds: vec![1.0; 3],
+            initial_capital: 100000.0,
+            salary: 50000.0,
+            required_income: 20000.0,
+            min_div_growth: 0.05,
+            min_cagr: 0.07,
+            min_yield: 0.03,
+            div_preference: 0.5,
+            cagr_preference: 0.3,
+            yield_preference: 0.2,
+            filing_status: FilingStatus::Single,
+            redistribution_threshold: -0.1, // Invalid redistribution_threshold
+            columns: HashMap::new(),
+        };
+
+        let result = request.validate();
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.field_errors().contains_key("redistribution_threshold"));
     }
 }
