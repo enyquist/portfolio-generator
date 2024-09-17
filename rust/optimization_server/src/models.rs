@@ -21,6 +21,7 @@ fn validate_columns(columns: &HashMap<String, Vec<f64>>) -> Result<(), Validatio
         "yields",
         "expense_ratios",
         "sector",
+        "qualified",
     ];
 
     for &key in &required_keys {
@@ -284,7 +285,7 @@ mod tests {
     fn test_invalid_lower_bounds() {
         let request = OptimizationRequest {
             dimension: 3,
-            lower_bounds: vec![1.0; 2], // Invalid lower bounds
+            lower_bounds: vec![1.0; 3], // Invalid lower bounds
             upper_bounds: vec![0.0; 3],
             initial_capital: 100000.0,
             salary: 50000.0,

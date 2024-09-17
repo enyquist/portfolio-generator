@@ -3,8 +3,10 @@
 use crate::models::OptimizationParams;
 use crate::utils::{
     calculate_cagr, calculate_diversity_penalty, calculate_dividend_growth,
-    calculate_expense_ratio, calculate_taxes, calculate_yield,
+    calculate_expense_ratio, calculate_yield,
 };
+use crate::taxbrackets::calculate_taxes;
+
 
 pub fn objective_function(
     x: &[f64],
@@ -32,19 +34,24 @@ fn calculate_objective(x: &[f64], params: &OptimizationParams) -> f64 {
     // Compute weighted metrics
     let weighted_dividend_growth = calculate_dividend_growth(x, &params.columns);
     let weighted_cagr = calculate_cagr(x, &params.columns);
-    let weighted_yield = calculate_yield(x, &params.columns);
+    let weighted_yield = calculate_yield(x, &params.columns, None).unwrap();
     let weighted_expense_ratio = calculate_expense_ratio(x, &params.columns);
 
-    // Calculate net income
-    let net_income = weighted_yield * params.initial_capital
-        - calculate_taxes(
-            x,
-            params.initial_capital,
-            &params.columns,
-            params.salary,
-            &params.qualified_brackets,
-            &params.non_qualified_brackets,
-        );
+    // Handle the Result from calculate_taxes using match
+    let net_income = match calculate_taxes(
+        x,
+        params.initial_capital,
+        &params.columns,
+        params.salary,
+        &params.qualified_brackets,
+        &params.non_qualified_brackets,
+    ) {
+        Ok(tax) => weighted_yield * params.initial_capital - tax,
+        Err(e) => {
+            eprintln!("Error calculating taxes: {}", e);
+            return f64::MAX; // Return a high penalty value, or handle it differently
+        }
+    };
 
     // Calculate penalties
     let div_growth_penalty = (params.min_div_growth - weighted_dividend_growth).max(0.0)

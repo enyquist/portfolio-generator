@@ -1,7 +1,7 @@
 // src/handlers.rs
 
 use crate::models::{OptimizationParams, OptimizationRequest, OptimizationResult, FilingStatus};
-use crate::utils::{
+use crate::taxbrackets::{
     get_head_of_household_non_qualified_brackets, get_head_of_household_qualified_brackets, get_married_jointly_non_qualified_brackets,
     get_married_jointly_qualified_brackets, get_married_separately_non_qualified_brackets, get_married_separately_qualified_brackets,
     get_single_non_qualified_brackets, get_single_qualified_brackets

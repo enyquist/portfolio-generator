@@ -34,6 +34,7 @@ async fn test_optimize_endpoint_success() {
             columns.insert("yields".to_string(), vec![0.02, 0.03, 0.04]);
             columns.insert("expense_ratios".to_string(), vec![0.001, 0.002, 0.003]);
             columns.insert("sector".to_string(), vec![1.0, 2.0, 1.0]);
+            columns.insert("qualified".to_string(), vec![1.0, 0.0, 1.0]);
             columns
         },
     };
@@ -91,6 +92,7 @@ async fn test_optimize_endpoint_bad_request() {
             columns.insert("yields".to_string(), vec![0.02, 0.03, 0.04]);
             columns.insert("expense_ratios".to_string(), vec![0.001, 0.002, 0.003]);
             columns.insert("sector".to_string(), vec![1.0, 2.0, 1.0]);
+            columns.insert("qualified".to_string(), vec![1.0, 0.0, 1.0]);
             columns
         },
     };
