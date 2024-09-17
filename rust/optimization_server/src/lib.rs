@@ -4,6 +4,7 @@ pub mod handlers;
 pub mod models;
 pub mod objective;
 pub mod utils;
+pub mod taxbrackets;
 
 pub async fn run_server() -> std::io::Result<()> {
     use actix_web::{App, HttpServer};

@@ -1,6 +1,5 @@
 // src/utils.rs
 
-use crate::models::TaxBracket;
 use std::collections::HashMap;
 use ordered_float::NotNan;
 
@@ -20,13 +19,35 @@ pub fn calculate_cagr(x: &[f64], columns: &HashMap<String, Vec<f64>>) -> f64 {
         .sum()
 }
 
-pub fn calculate_yield(x: &[f64], columns: &HashMap<String, Vec<f64>>) -> f64 {
+pub fn calculate_yield(x: &[f64], columns: &HashMap<String, Vec<f64>>, filter: Option<i32>) -> Result<f64, String> {
     let yields = &columns["yields"]; // Replace with actual key
-    x.iter()
-        .zip(yields.iter())
+    let qualified = &columns["qualified"]; // Assuming "qualified" is also stored in columns as Vec<f64>
+
+    let filtered_data: Vec<(f64, f64)> = match filter {
+        None => x.iter().cloned().zip(yields.iter().cloned()).collect(),
+        Some(0) => x.iter()
+            .cloned()
+            .zip(yields.iter().cloned())
+            .zip(qualified.iter().cloned())
+            .filter(|(_, q)| q == &0.0)
+            .map(|((xi, y), _)| (xi, y))
+            .collect(),
+        Some(1) => x.iter()
+            .cloned()
+            .zip(yields.iter().cloned())
+            .zip(qualified.iter().cloned())
+            .filter(|(_, q)| q == &1.0)
+            .map(|((xi, y), _)| (xi, y))
+            .collect(),
+        _ => return Err(String::from("Invalid filter value, must be None, 0, or 1")),
+    };
+
+    Ok(filtered_data
+        .iter()
         .map(|(xi, y)| xi * y)
-        .sum()
+        .sum())
 }
+
 
 pub fn calculate_expense_ratio(x: &[f64], columns: &HashMap<String, Vec<f64>>) -> f64 {
     let expense_ratios = &columns["expense_ratios"]; // Replace with actual key
@@ -82,134 +103,7 @@ pub fn calculate_diversity_penalty(
 
 }
 
-pub fn calculate_taxes(
-    x: &[f64],
-    initial_capital: f64,
-    columns: &HashMap<String, Vec<f64>>,
-    salary: f64,
-    qualified_brackets: &[TaxBracket],
-    non_qualified_brackets: &[TaxBracket],
-) -> f64 {
-    let investment_income = calculate_yield(x, columns) * initial_capital;
-    // let total_income = salary + investment_income;
 
-    // Calculate taxes
-    let salary_tax = calculate_tax_for_income(salary, qualified_brackets);
-    let investment_tax = calculate_tax_for_income(investment_income, non_qualified_brackets);
-
-    salary_tax + investment_tax
-
-}
-
-fn calculate_tax_for_income(income: f64, brackets: &[TaxBracket]) -> f64 {
-    let mut tax = 0.0;
-    let mut remaining_income = income;
-    let mut previous_threshold = 0.0;
-
-    for bracket in brackets {
-        let upper_limit = bracket.threshold.unwrap_or(f64::INFINITY);
-
-        let taxable_income = if remaining_income > (upper_limit - previous_threshold) {
-            upper_limit - previous_threshold
-        } else {
-            remaining_income
-        };
-
-        tax += taxable_income * bracket.rate;
-
-        remaining_income -= taxable_income;
-        previous_threshold = upper_limit;
-
-        if remaining_income <= 0.0 {
-            break;
-        }
-    }
-
-    tax
-}
-
-// Helper functions to get tax brackets based on filing status
-pub fn get_single_non_qualified_brackets() -> Vec<TaxBracket> {
-    vec![
-        TaxBracket { rate: 0.0, threshold: Some(11600.0) },
-        TaxBracket { rate: 0.12, threshold: Some(47150.0) },
-        TaxBracket { rate: 0.22, threshold: Some(100526.0) },
-        TaxBracket { rate: 0.24, threshold: Some(191950.0) },
-        TaxBracket { rate: 0.32, threshold: Some(243725.0) },
-        TaxBracket { rate: 0.35, threshold: Some(609350.0) },
-        TaxBracket { rate: 0.37, threshold: None }, // No upper limit
-    ]
-}
-
-pub fn get_single_qualified_brackets() -> Vec<TaxBracket> {
-    vec![
-        TaxBracket { rate: 0.0, threshold: Some(47025.0) },
-        TaxBracket { rate: 0.15, threshold: Some(518900.0) },
-        TaxBracket { rate: 0.20, threshold: None },
-    ]
-}
-
-// Define similar functions for other filing statuses
-
-pub fn get_married_jointly_non_qualified_brackets() -> Vec<TaxBracket> {
-    vec![
-        TaxBracket { rate: 0.0, threshold: Some(23200.0) },
-        TaxBracket { rate: 0.12, threshold: Some(94300.0) },
-        TaxBracket { rate: 0.22, threshold: Some(201050.0) },
-        TaxBracket { rate: 0.24, threshold: Some(383900.0) },
-        TaxBracket { rate: 0.32, threshold: Some(487450.0) },
-        TaxBracket { rate: 0.35, threshold: Some(731200.0) },
-        TaxBracket { rate: 0.37, threshold: None },
-    ]
-}
-
-pub fn get_married_jointly_qualified_brackets() -> Vec<TaxBracket> {
-    vec![
-        TaxBracket { rate: 0.0, threshold: Some(94050.0) },
-        TaxBracket { rate: 0.15, threshold: Some(583750.0) },
-        TaxBracket { rate: 0.20, threshold: None },
-    ]
-}
-
-pub fn get_married_separately_non_qualified_brackets() -> Vec<TaxBracket> {
-    vec![
-        TaxBracket { rate: 0.0, threshold: Some(11600.0) },
-        TaxBracket { rate: 0.12, threshold: Some(47150.0) },
-        TaxBracket { rate: 0.22, threshold: Some(100525.0) },
-        TaxBracket { rate: 0.24, threshold: Some(191950.0) },
-        TaxBracket { rate: 0.32, threshold: Some(243725.0) },
-        TaxBracket { rate: 0.35, threshold: Some(365600.0) },
-        TaxBracket { rate: 0.37, threshold: None },
-    ]
-}
-
-pub fn get_married_separately_qualified_brackets() -> Vec<TaxBracket> {
-    vec![
-        TaxBracket { rate: 0.0, threshold: Some(47025.0) },
-        TaxBracket { rate: 0.15, threshold: Some(291850.0) },
-        TaxBracket { rate: 0.20, threshold: None },
-    ]
-}
-
-pub fn get_head_of_household_non_qualified_brackets() -> Vec<TaxBracket> {
-    vec![
-        TaxBracket { rate: 0.0, threshold: Some(16550.0) },
-        TaxBracket { rate: 0.12, threshold: Some(63100.0) },
-        TaxBracket { rate: 0.22, threshold: Some(100500.0) },
-        TaxBracket { rate: 0.24, threshold: Some(191950.0) },
-        TaxBracket { rate: 0.32, threshold: Some(243700.0) },
-        TaxBracket { rate: 0.35, threshold: Some(609350.0) },
-        TaxBracket { rate: 0.37, threshold: None },
-    ]
-}
-
-pub fn get_head_of_household_qualified_brackets() -> Vec<TaxBracket> {
-    vec![
-        TaxBracket { rate: 0.0, threshold: Some(63000.0) },
-        TaxBracket { rate: 0.15, threshold: Some(551350.0) },
-        TaxBracket { rate: 0.20, threshold: None },
-    ]
-}
 
 #[cfg(test)]
 mod tests {
@@ -243,8 +137,9 @@ mod tests {
         let x = vec![0.4, 0.4, 0.2];
         let mut columns = HashMap::new();
         columns.insert("yields".to_string(), vec![0.02, 0.03, 0.04]);
+        columns.insert("qualified".to_string(), vec![1.0, 0.0, 1.0]);
 
-        let result = calculate_yield(&x, &columns);
+        let result = calculate_yield(&x, &columns, None).unwrap();
         let expected = 0.4 * 0.02 + 0.4 * 0.03 + 0.2 * 0.04;
         assert!((result - expected).abs() < 1e-8);
     }
@@ -286,39 +181,4 @@ mod tests {
         assert!((penalty - expected_penalty).abs() < 1e-6);
     }
 
-    #[test]
-    fn test_calculate_taxes() {
-        let x = vec![0.3, 0.5, 0.2];
-        let mut columns = HashMap::new();
-        columns.insert("yields".to_string(), vec![0.02, 0.03, 0.04]);
-
-        let initial_capital = 100000.0;
-        let salary = 50000.0;
-        let qualified_brackets = vec![
-            TaxBracket {
-                rate: 0.1,
-                threshold: Some(9950.0),
-            },
-            TaxBracket {
-                rate: 0.12,
-                threshold: Some(40525.0),
-            },
-        ];
-        let non_qualified_brackets = vec![TaxBracket {
-            rate: 0.15,
-            threshold: Some(86375.0),
-        }];
-
-        let taxes = calculate_taxes(
-            &x,
-            initial_capital,
-            &columns,
-            salary,
-            &qualified_brackets,
-            &non_qualified_brackets,
-        );
-
-        // Since tax calculation logic is complex, we can assert that taxes are non-negative
-        assert!(taxes >= 0.0);
-    }
 }
