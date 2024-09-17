@@ -6,6 +6,7 @@ use crate::taxbrackets::{
     get_married_jointly_qualified_brackets, get_married_separately_non_qualified_brackets, get_married_separately_qualified_brackets,
     get_single_non_qualified_brackets, get_single_qualified_brackets
 };
+use crate::utils::redistribute_weights;
 use crate::objective::objective_function;
 use actix_web::{post, web, get, HttpResponse, Responder};
 use nlopt::{Algorithm, Nlopt, Target};
@@ -123,12 +124,17 @@ pub async fn optimize(params: web::Json<OptimizationRequest>) -> impl Responder 
 
     // Run the optimization
     match opt.optimize(&mut x) {
-        Ok((success_state, obj_val)) => HttpResponse::Ok().json(OptimizationResult {
-            success: true,
-            x: Some(x.clone()), // x has been modified to contain the optimized variables
-            objective_value: Some(obj_val),
-            message: format!("Optimization succeeded with status: {:?}", success_state),
-        }),
+        Ok((success_state, obj_val)) => {
+            // Apply redistribution logic before returning x
+            redistribute_weights(&mut x, params.redistribution_threshold);
+
+            HttpResponse::Ok().json(OptimizationResult {
+                success: true,
+                x: Some(x.clone()), // x has been modified with redistributed weights
+                objective_value: Some(obj_val),
+                message: format!("Optimization succeeded with status: {:?}", success_state),
+            })
+        }
         Err(err) => HttpResponse::Ok().json(OptimizationResult {
             success: false,
             x: None,
