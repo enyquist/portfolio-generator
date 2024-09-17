@@ -15,7 +15,7 @@ pub async fn run_server() -> std::io::Result<()> {
             .service(optimize)
             .service(health_check)
     })
-    .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }
