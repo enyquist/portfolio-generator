@@ -1,6 +1,6 @@
 DOCKER_IMAGE=optimization_server
 DOCKER_CONTAINER_NAME=optimization_server_test
-DOCKER_RUN_CMD=docker run -d --name $(DOCKER_CONTAINER_NAME) --cpus="2" --memory="4g" -p 8080:8080 $(DOCKER_IMAGE)
+DOCKER_RUN_CMD=docker run -d --name $(DOCKER_CONTAINER_NAME) --cpus="2" --memory="2g" -p 8080:8080 $(DOCKER_IMAGE)
 
 init: ## Initialize Project
 	@python3.12 -m venv venv
@@ -54,6 +54,8 @@ serve-docs: docs ## Serve docs in web-browser
 	firefox docs/_build/html/index.html
 
 load-test: ## Run load test
+	# Build the docker image
+	docker build -t $(DOCKER_IMAGE) -f docker/optimization_server/Dockerfile .
 	# Bring up the container with resource constraints
 	$(DOCKER_RUN_CMD)
 	# Wait for the container to start
