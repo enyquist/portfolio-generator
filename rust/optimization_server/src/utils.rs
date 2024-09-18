@@ -103,6 +103,30 @@ pub fn calculate_diversity_penalty(
 
 }
 
+pub fn redistribute_weights(x: &mut Vec<f64>, threshold: f64) {
+    let mut sum_below_threshold = 0.0;
+    let mut sum_above_threshold = 0.0;
+
+    // First pass: Set weights below the threshold to 0 and calculate sums
+    for weight in x.iter_mut() {
+        if *weight < threshold {
+            sum_below_threshold += *weight;
+            *weight = 0.0;
+        } else {
+            sum_above_threshold += *weight;
+        }
+    }
+
+    // Second pass: Redistribute the sum of the weights set to 0
+    if sum_above_threshold > 0.0 {
+        for weight in x.iter_mut() {
+            if *weight > 0.0 {
+                *weight += *weight / sum_above_threshold * sum_below_threshold;
+            }
+        }
+    }
+}
+
 
 
 #[cfg(test)]

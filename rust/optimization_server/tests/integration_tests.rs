@@ -27,6 +27,7 @@ async fn test_optimize_endpoint_success() {
         cagr_preference: 0.3,
         yield_preference: 0.2,
         filing_status: FilingStatus::Single,
+        redistribution_threshold: 0.01,
         columns: {
             let mut columns = HashMap::new();
             columns.insert("dividend_growth_rates".to_string(), vec![0.04, 0.05, 0.06]);
@@ -85,6 +86,7 @@ async fn test_optimize_endpoint_bad_request() {
         cagr_preference: 0.3,
         yield_preference: 0.2,
         filing_status: FilingStatus::Single,
+        redistribution_threshold: 0.01,
         columns: {
             let mut columns = HashMap::new();
             columns.insert("dividend_growth_rates".to_string(), vec![0.04, 0.05, 0.06]);
@@ -146,6 +148,7 @@ async fn test_optimize_endpoint_missing_info_request() {
         "cagr_preference": 0.3,
         "yield_preference": 0.2,
         "filing_status": "single",
+        "redistrubtion_threshold": 0.01,
         "columns": {}
     });
 
@@ -191,6 +194,7 @@ async fn test_optimize_endpoint_invalid_filing_status() {
         "cagr_preference": 0.3,
         "yield_preference": 0.2,
         "filing_status": "baller",
+        "redistrubtion_threshold": 0.01,
         "columns": {}
     });
 
@@ -237,6 +241,7 @@ async fn test_optimize_upper_bounds_infeasible() {
         cagr_preference: 0.3,
         yield_preference: 0.2,
         filing_status: FilingStatus::Single,
+        redistribution_threshold: 0.01,
         columns: HashMap::new(),
     };
 
@@ -292,6 +297,7 @@ async fn test_optimize_multiple_errors() {
         cagr_preference: 0.3,
         yield_preference: 0.2,
         filing_status: FilingStatus::Single,
+        redistribution_threshold: 0.01,
         columns: HashMap::new(),
     };
 

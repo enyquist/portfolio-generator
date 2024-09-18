@@ -1,3 +1,7 @@
+DOCKER_IMAGE=optimization_server
+DOCKER_CONTAINER_NAME=optimization_server_test
+DOCKER_RUN_CMD=docker run -d --name $(DOCKER_CONTAINER_NAME) --cpus="2" --memory="2g" -p 8080:8080 $(DOCKER_IMAGE)
+
 init: ## Initialize Project
 	@python3.12 -m venv venv
 	@./venv/bin/python3 -m pip install pip --upgrade
@@ -6,9 +10,6 @@ init: ## Initialize Project
 	@./venv/bin/python3 -m pip install -r requirements/requirements-dev.txt
 	@./venv/bin/python3 -m pip install -e . --no-deps
 	@./venv/bin/python3 -m pre_commit install --install-hooks --overwrite
-
-	# Build the Rust code and link to Python
-	(cd rust/pso && ../venv/bin/maturin develop)
 
 clean:  ## remove build artifacts
 	rm -rf build dist venv pip-wheel-metadata htmlcov
@@ -49,44 +50,18 @@ sync-venv: update-requirements reset-venv ## Sync python environment deletes doc
 	./venv/bin/pip-sync ./requirements/requirements.txt ./requirements/requirements-dev.txt
 	./venv/bin/pip install -e . --no-deps
 
-rebuild-notebooks: ## Re-run notebooks for latest outputs
-	./venv/bin/python3 src/docs/run-notebooks.py; \
-	username=`whoami`; \
-	date; \
-	for f in $(shell find notebooks/ -type f -name "*.ipynb" | sort); do \
-		echo "Scrub username from '$${f}'"; \
-		sed -i"" "s/$${username}/jdoe/g" $${f}; \
-		date; \
-	done
-
-docs-build: ## Build docs
-	# run sphinx to build docs
-	./venv/bin/sphinx-build -c docs/ -w docs.log docs/ docs/_build/html/
-	mkdir -p docs/_build/html/_static/notebooks
-	cp notebooks/*.ipynb docs/_build/html/_static/notebooks
-
-docs: rebuild-notebooks docs-build ## Build documentation and API docs
-
 serve-docs: docs ## Serve docs in web-browser
 	firefox docs/_build/html/index.html
 
-serve-django: ## Load Django App
-	@./venv/bin/python3 app/manage.py runserver
-
-build-docker-aws: ## Build docker image
-	docker build --progress=plain \
-		--secret id=ssh-private-key,src=${HOME}/.ssh/id_ed25519 \
-		-t 516823451519.dkr.ecr.us-east-1.amazonaws.com/medication-extractor-repo:latest .
-	docker push 516823451519.dkr.ecr.us-east-1.amazonaws.com/medication-extractor-repo:latest
-
-build-docker-local: ## Build docker image
-	docker build --progress=plain \
-		--secret id=ssh-private-key,src=${HOME}/.ssh/id_ed25519 \
-		-t medication-extractor:local .
-
-run-docker: ## Run docker image
-	docker run -it \
-		-p 8000:8000 \
-		-v ~/.aws/credentials:/root/.aws/credentials:ro \
-		-v ~/.aws/config:/root/.aws/config:ro \
-		medication-extractor:local
+load-test: ## Run load test
+	# Build the docker image
+	docker build -t $(DOCKER_IMAGE) -f docker/optimization_server/Dockerfile .
+	# Bring up the container with resource constraints
+	$(DOCKER_RUN_CMD)
+	# Wait for the container to start
+	sleep 5
+	# Run the load test
+	wrk -t12 -c400 -d30s --script tests/integration/load_testing.lua http://localhost:8080/optimize
+	# Bring down the container
+	docker stop $(DOCKER_CONTAINER_NAME)
+	docker rm $(DOCKER_CONTAINER_NAME)
