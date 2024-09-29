@@ -9,6 +9,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
 validator = { version = "0.18", features = ["derive"] }
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
 
 [lib]
 name = "query_service"
@@ -16,3 +18,4 @@ path = "src/lib.rs"
 
 [dev-dependencies]
 query_service = { path = "." }
+mockito = "0.31"
