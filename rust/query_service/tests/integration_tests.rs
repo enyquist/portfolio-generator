@@ -3,7 +3,7 @@
 use reqwest::Client;
 use mockito::{mock, Matcher};
 use std::error::Error;
-use query_service::loader::{OverviewResponse, DividendHistoryResponse, PriceHistoryResponse};
+use query_service::models::{OverviewResponse, DividendHistoryResponse, PriceHistoryResponse};
 use chrono::NaiveDate;
 
 #[tokio::test]
