@@ -18,9 +18,9 @@ services:
   db:
     image: postgres:12-20-alpine3.20  # Use the PostgreSQL 12 image
     environment:
-      POSTGRES_DB: my_database  # Name of the database
-      POSTGRES_USER: my_user    # Username for the database
-      POSTGRES_PASSWORD: my_password  # Password for the database
+      POSTGRES_DB: ${POSTGRES_DB_TEST}  # Name of the database
+      POSTGRES_USER: ${POSTGRES_USER_TEST}    # Username for the database
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_TEST}  # Password for the database
     ports:
       - "5432:5432"  # Expose the PostgreSQL port
     volumes:
@@ -34,7 +34,7 @@ services:
     depends_on:
       - db  # Ensure the database is ready before running the query service
     environment:
-      DATABASE_URL: postgres://my_user:my_password@db:5432/my_database
+      DATABASE_URL: postgres://${POSTGRES_USER_TEST}:${POSTGRES_PASSWORD_TEST}@db:5432/${POSTGRES_DB_TEST}  # Database connection URL
     volumes:
       - ./query_service:/usr/src/app
 
